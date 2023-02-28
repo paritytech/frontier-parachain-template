@@ -42,9 +42,10 @@ use frame_support::{
     construct_runtime,
     dispatch::DispatchClass,
     parameter_types,
+    traits::AsEnsureOriginWithArg,
     weights::{
-        constants::WEIGHT_PER_SECOND, ConstantMultiplier, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-        WeightToFeePolynomial,
+        constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier, Weight, WeightToFeeCoefficient,
+        WeightToFeeCoefficients, WeightToFeePolynomial,
     },
     ConsensusEngineId, PalletId,
 };
@@ -54,7 +55,7 @@ use frame_support::{
 };
 use frame_system::{
     limits::{BlockLength, BlockWeights},
-    EnsureRoot,
+    EnsureRoot, EnsureSigned,
 };
 use pallet_balances::NegativeImbalance;
 use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
@@ -218,7 +219,10 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 /// We allow for 0.5 of a second of compute with a 12 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND.saturating_div(2);
+const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
+    WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
+    cumulus_primitives_core::relay_chain::v2::MAX_POV_SIZE as u64,
+);
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -367,7 +371,10 @@ impl pallet_assets::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Balance = Balance;
     type AssetId = u32;
+    type AssetIdParameter = codec::Compact<u32>;
     type Currency = Balances;
+    type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+    type CallbackHandle = ();
     type ForceOrigin = EnsureRoot<AccountId>;
     type AssetDeposit = AssetDeposit;
     type AssetAccountDeposit = AssetAccountDeposit;
@@ -377,7 +384,10 @@ impl pallet_assets::Config for Runtime {
     type StringLimit = StringLimit;
     type Freezer = ();
     type Extra = ();
+    type RemoveItemsLimit = ConstU32<1000>;
     type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ();
 }
 
 parameter_types! {
@@ -613,6 +623,7 @@ impl pallet_evm::Config for Runtime {
     type BlockGasLimit = BlockGasLimit;
     type WeightPerGas = WeightPerGas;
     type OnChargeTransaction = EVMTransactionChargeHandler<EVMDealWithFees<Runtime>>;
+    type OnCreate = ();
 
     type CallOrigin = EnsureAddressRoot<AccountId>;
     type WithdrawOrigin = EnsureAddressTruncated;
@@ -1020,6 +1031,111 @@ impl_runtime_apis! {
         fn elasticity() -> Option<Permill> {
             Some(BaseFee::elasticity())
         }
+
+        fn gas_limit_multiplier_support() {}
+
+    }
+
+    impl moonbeam_rpc_primitives_debug::DebugRuntimeApi<Block> for Runtime {
+        fn trace_transaction(
+            _extrinsics: Vec<<Block as BlockT>::Extrinsic>,
+            _traced_transaction: &pallet_ethereum::Transaction,
+        ) -> Result<
+            (),
+            sp_runtime::DispatchError,
+        > {
+            #[cfg(feature = "evm-tracing")]
+            {
+                use moonbeam_evm_tracer::tracer::EvmTracer;
+
+                // Apply the a subset of extrinsics: all the substrate-specific or ethereum
+                // transactions that preceded the requested transaction.
+                for ext in _extrinsics.into_iter() {
+                    let _ = match &ext.0.function {
+                        RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) => {
+                            if transaction == _traced_transaction {
+                                EvmTracer::new().trace(|| Executive::apply_extrinsic(ext));
+                                return Ok(());
+                            } else {
+                                Executive::apply_extrinsic(ext)
+                            }
+                        }
+                        _ => Executive::apply_extrinsic(ext),
+                    };
+                }
+
+                Err(sp_runtime::DispatchError::Other(
+                    "Failed to find Ethereum transaction among the extrinsics.",
+                ))
+            }
+            #[cfg(not(feature = "evm-tracing"))]
+            Err(sp_runtime::DispatchError::Other(
+                "Missing `evm-tracing` compile time feature flag.",
+            ))
+        }
+
+        fn trace_block(
+            _extrinsics: Vec<<Block as BlockT>::Extrinsic>,
+            _known_transactions: Vec<H256>,
+        ) -> Result<
+            (),
+            sp_runtime::DispatchError,
+        > {
+            #[cfg(feature = "evm-tracing")]
+            {
+                use moonbeam_evm_tracer::tracer::EvmTracer;
+
+                let mut config = <Runtime as pallet_evm::Config>::config().clone();
+                config.estimate = true;
+
+                // Apply all extrinsics. Ethereum extrinsics are traced.
+                for ext in _extrinsics.into_iter() {
+                    match &ext.0.function {
+                        RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) => {
+                            if _known_transactions.contains(&transaction.hash()) {
+                                // Each known extrinsic is a new call stack.
+                                EvmTracer::emit_new();
+                                EvmTracer::new().trace(|| Executive::apply_extrinsic(ext));
+                            } else {
+                                let _ = Executive::apply_extrinsic(ext);
+                            }
+                        }
+                        _ => {
+                            let _ = Executive::apply_extrinsic(ext);
+                        }
+                    };
+                }
+                Ok(())
+            }
+            #[cfg(not(feature = "evm-tracing"))]
+            Err(sp_runtime::DispatchError::Other(
+                "Missing `evm-tracing` compile time feature flag.",
+            ))
+        }
+    }
+
+    impl moonbeam_rpc_primitives_txpool::TxPoolRuntimeApi<Block> for Runtime {
+        fn extrinsic_filter(
+            xts_ready: Vec<<Block as BlockT>::Extrinsic>,
+            xts_future: Vec<<Block as BlockT>::Extrinsic>,
+        ) -> moonbeam_rpc_primitives_txpool::TxPoolResponse {
+            moonbeam_rpc_primitives_txpool::TxPoolResponse {
+                ready: xts_ready
+                    .into_iter()
+                    .filter_map(|xt| match xt.0.function {
+                        RuntimeCall::Ethereum(transact { transaction }) => Some(transaction),
+                        _ => None,
+                    })
+                    .collect(),
+                future: xts_future
+                    .into_iter()
+                    .filter_map(|xt| match xt.0.function {
+                        RuntimeCall::Ethereum(transact { transaction }) => Some(transaction),
+                        _ => None,
+                    })
+                    .collect(),
+            }
+        }
     }
 
     impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {
@@ -1070,21 +1186,19 @@ impl_runtime_apis! {
 
     #[cfg(feature = "try-runtime")]
     impl frame_try_runtime::TryRuntime<Block> for Runtime {
-        fn on_runtime_upgrade() -> (Weight, Weight) {
+        fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
             log::info!("try-runtime::on_runtime_upgrade parachain-template.");
-            let weight = Executive::try_runtime_upgrade().unwrap();
+            let weight = Executive::try_runtime_upgrade(checks).unwrap();
             (weight, RuntimeBlockWeights::get().max_block)
         }
 
-        fn execute_block(block: Block, state_root_check: bool, select: frame_try_runtime::TryStateSelect) -> Weight {
-            log::info!(
-                target: "runtime::parachain-template", "try-runtime: executing block #{} ({:?}) / root checks: {:?} / sanity-checks: {:?}",
-                block.header.number,
-                block.header.hash(),
-                state_root_check,
-                select,
-            );
-            Executive::try_execute_block(block, state_root_check, select).expect("try_execute_block failed")
+        fn execute_block(
+            block: Block,
+            state_root_check: bool,
+            signature_check: bool,
+            select: frame_try_runtime::TryStateSelect,
+        ) -> Weight {
+            Executive::try_execute_block(block, state_root_check, signature_check, select).unwrap()
         }
     }
 

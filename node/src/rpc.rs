@@ -35,6 +35,19 @@ use fc_rpc::{
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 use fp_storage::EthereumStorageSchema;
 
+use crate::cli::EthApi as EthApiCmd;
+use moonbeam_rpc_debug::{Debug, DebugServer};
+use moonbeam_rpc_trace::{Trace, TraceServer};
+use moonbeam_rpc_txpool::{TxPool, TxPoolServer};
+
+use crate::tracing;
+
+#[derive(Clone)]
+pub struct EvmTracingConfig {
+	pub tracing_requesters: tracing::RpcRequesters,
+	pub trace_filter_max_count: u32,
+}
+
 /// Full client dependencies.
 pub struct FullDeps<C, P, A: ChainApi> {
 	/// The client instance to use.
@@ -47,16 +60,14 @@ pub struct FullDeps<C, P, A: ChainApi> {
 	pub deny_unsafe: DenyUnsafe,
 	/// The Node authority flag
 	pub is_authority: bool,
-	/// Whether to enable dev signer
-	// pub enable_dev_signer: bool,
 	/// Network service
 	pub network: Arc<NetworkService<Block, Hash>>,
 	/// EthFilterApi pool.
 	pub filter_pool: Option<FilterPool>,
+	/// The list of optional RPC extensions.
+	pub ethapi_cmd: Vec<EthApiCmd>,
 	/// Backend.
 	pub backend: Arc<fc_db::Backend<Block>>,
-	/// Maximum number of logs in a query.
-	// pub max_past_logs: u32,
 	/// Fee history cache.
 	pub fee_history_cache: FeeHistoryCache,
 	/// Maximum fee history cache size.
@@ -65,6 +76,8 @@ pub struct FullDeps<C, P, A: ChainApi> {
 	pub overrides: Arc<OverrideHandle<Block>>,
 	/// Cache for Ethereum block data.
 	pub block_data_cache: Arc<EthBlockDataCacheTask<Block>>,
+	/// Enable EVM RPC server
+	pub enable_evm_rpc: bool,
 }
 
 pub fn overrides_handle<C, BE>(client: Arc<C>) -> Arc<OverrideHandle<Block>>
@@ -128,6 +141,7 @@ where
 pub fn create_full<C, P, BE, A>(
 	deps: FullDeps<C, P, A>,
 	subscription_task_executor: SubscriptionTaskExecutor,
+	tracing_config: EvmTracingConfig,
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>
@@ -144,7 +158,9 @@ where
 		+ pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
 		+ fp_rpc::ConvertTransactionRuntimeApi<Block>
 		+ fp_rpc::EthereumRuntimeRPCApi<Block>
-		+ BlockBuilder<Block>,
+		+ BlockBuilder<Block>
+		+ moonbeam_rpc_primitives_debug::DebugRuntimeApi<Block>
+		+ moonbeam_rpc_primitives_txpool::TxPoolRuntimeApi<Block>,
 	P: TransactionPool<Block = Block> + Sync + Send + 'static,
 	BE: Backend<Block> + 'static,
 	BE::State: StateBackend<BlakeTwo256>,
@@ -156,6 +172,7 @@ where
 		NetApiServer, Web3, Web3ApiServer,
 	};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
+	use sc_rpc::dev::DevApiServer;
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 
 	let mut io = RpcModule::new(());
@@ -168,16 +185,23 @@ where
 		// enable_dev_signer,
 		network,
 		filter_pool,
+		ethapi_cmd,
 		backend,
 		// max_past_logs,
 		fee_history_cache,
 		fee_history_cache_limit,
 		overrides,
 		block_data_cache,
+		enable_evm_rpc,
 	} = deps;
 
 	io.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
 	io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
+	io.merge(sc_rpc::dev::Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+
+	if !enable_evm_rpc {
+		return Ok(io);
+	}
 
 	let signers = Vec::new();
 
@@ -185,7 +209,7 @@ where
 		Eth::new(
 			client.clone(),
 			pool.clone(),
-			graph,
+			graph.clone(),
 			Some(parachain_template_runtime::TransactionConverter),
 			network.clone(),
 			signers,
@@ -238,7 +262,22 @@ where
 		.into_rpc(),
 	)?;
 
-	io.merge(Web3::new(client).into_rpc())?;
+	io.merge(Web3::new(client.clone()).into_rpc())?;
+
+	if ethapi_cmd.contains(&EthApiCmd::Txpool) {
+		io.merge(TxPool::new(Arc::clone(&client), graph).into_rpc())?;
+	}
+
+	if let Some(trace_filter_requester) = tracing_config.tracing_requesters.trace {
+		io.merge(
+			Trace::new(client, trace_filter_requester, tracing_config.trace_filter_max_count)
+				.into_rpc(),
+		)?;
+	}
+
+	if let Some(debug_requester) = tracing_config.tracing_requesters.debug {
+		io.merge(Debug::new(debug_requester).into_rpc())?;
+	}
 
 	Ok(io)
 }
