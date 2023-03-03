@@ -70,13 +70,12 @@ pub struct Cli {
 	#[arg(long)]
 	pub no_hardware_benchmarks: bool,
 
-	// TODO: Enabled by default, as turning it off would break the following ethapi commands
-	// Unless specially handled
-	/// Enable Ethereum compatible JSON-RPC servers.
-	/// Currently there is no way this is disabled by the user as the presence or absence of this flag would
-	/// both lead to a `true` value
-	#[arg(long = "enable-evm-rpc", long, default_value = "true")]
-	pub enable_evm_rpc: bool,
+	/// Disable Ethereum compatible JSON-RPC servers.
+	#[arg(
+		long = "disable-evm-rpc", long, default_value = "false",
+		conflicts_with_all(&["ethapi", "ethapi_max_permits", "ethapi_trace_max_count", "ethapi_trace_cache_duration", "eth_log_block_cache", "eth_statuses_cache", "tracing_raw_max_memory_usage", "max_past_logs"])
+	)]
+	pub disable_evm_rpc: bool,
 
 	/// Enable EVM tracing module on a non-authority node.
 	#[arg(long, value_delimiter = ',')]
