@@ -1,0 +1,34 @@
+[settings]
+timeout = 1000
+
+[relaychain]
+chain = "rococo-local"
+default_command = "../polkadot/target/release/polkadot"
+
+  [[relaychain.nodes]]
+  name = "alice"
+  validator = true
+  ws_port = 9900
+  extra_args = [ "-lparachain=debug" ]
+
+  [[relaychain.nodes]]
+  name = "bob"
+  validator = true
+  extra_args = [ "-lparachain=debug" ]
+
+[[parachains]]
+id = 1000
+add_to_genesis = true
+cumulus_based = true
+chain = "local"
+
+  [[parachains.collators]]
+  name = "frontier-parachain-collator01"
+  command = "./target/release/frontier-parachain-node"
+  ws_port = 9910
+  args = [""]
+
+[types.Header]
+number = "u64"
+parent_hash = "Hash"
+post_state = "Hash"

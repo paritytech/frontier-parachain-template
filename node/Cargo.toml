@@ -1,5 +1,5 @@
 [package]
-name = "parachain-template-node"
+name = "frontier-parachain-node"
 version = "0.1.0"
 authors = ["Anonymous"]
 description = "A new Cumulus FRAME-based Substrate Node, ready for hacking together a parachain."
@@ -10,14 +10,16 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
-clap = { version = "4.0.32", features = ["derive"] }
+async-trait = "0.1"
+clap = { version = "4.1", features = ["derive", "deprecated"] }
+futures = "0.3.25"
 log = "0.4.17"
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 serde = { version = "1.0.152", features = ["derive"] }
-jsonrpsee = { version = "0.16.2", features = ["server"] }
+jsonrpsee = { version = "0.16.2", features = ["server", "macros"] }
 
 # Local
-parachain-template-runtime = { path = "../runtime" }
+frontier-parachain-runtime = { path = "../runtime" }
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", "branch" = "polkadot-v0.9.37" }
@@ -70,6 +72,18 @@ cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus.git", b
 cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v0.9.37" }
 cumulus-relay-chain-interface = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v0.9.37" }
 
+# Frontier
+fc-cli = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fc-consensus = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fc-db = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fc-mapping-sync = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fc-rpc = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fc-rpc-core = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fp-dynamic-fee = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fp-evm = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fp-rpc = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+fp-storage = { git = "https://github.com/paritytech/frontier", branch = "polkadot-v0.9.37" }
+
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", "branch" = "polkadot-v0.9.37" }
 
@@ -77,10 +91,10 @@ substrate-build-script-utils = { git = "https://github.com/paritytech/substrate"
 default = []
 runtime-benchmarks = [
 	"try-runtime-cli/try-runtime",
-	"parachain-template-runtime/runtime-benchmarks",
+	"frontier-parachain-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
 ]
 try-runtime = [
 	"try-runtime-cli/try-runtime",
-	"parachain-template-runtime/try-runtime"
+	"frontier-parachain-runtime/try-runtime"
 ]
