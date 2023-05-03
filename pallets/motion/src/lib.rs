@@ -12,131 +12,131 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use super::{DispatchResult, *};
-    use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
+	use super::{DispatchResult, *};
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
 
-    use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable};
+	use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable};
 
-    #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
-    pub struct Pallet<T>(_);
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	pub struct Pallet<T>(_);
 
-    #[pallet::config]
-    pub trait Config: frame_system::Config {
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        type RuntimeCall: Parameter
-            + UnfilteredDispatchable<RuntimeOrigin = Self::RuntimeOrigin>
-            + GetDispatchInfo;
+		type RuntimeCall: Parameter
+			+ UnfilteredDispatchable<RuntimeOrigin = Self::RuntimeOrigin>
+			+ GetDispatchInfo;
 
-        type SimpleMajorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-        type SuperMajorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-        type UnanimousOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-    }
+		type SimpleMajorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type SuperMajorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type UnanimousOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+	}
 
-    #[pallet::event]
-    #[pallet::generate_deposit(pub(super) fn deposit_event)]
-    pub enum Event<T: Config> {
-        /// A SimpleMajority motion was executed. motion_result contains the call result
-        DispatchSimpleMajority { motion_result: DispatchResult },
-        /// A SuperMajority motion was executed. motion_result contains the call result
-        DispatchSuperMajority { motion_result: DispatchResult },
-        /// A Unanimous motion was executed. motion_result contains the call result
-        DispatchUnanimous { motion_result: DispatchResult },
-    }
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		/// A SimpleMajority motion was executed. motion_result contains the call result
+		DispatchSimpleMajority { motion_result: DispatchResult },
+		/// A SuperMajority motion was executed. motion_result contains the call result
+		DispatchSuperMajority { motion_result: DispatchResult },
+		/// A Unanimous motion was executed. motion_result contains the call result
+		DispatchUnanimous { motion_result: DispatchResult },
+	}
 
-    #[pallet::error]
-    pub enum Error<T> {}
+	#[pallet::error]
+	pub enum Error<T> {}
 
-    #[pallet::call]
-    impl<T: Config> Pallet<T> {
-        /// Ensures the simple majority is met and dispatches a call with `Root` origin.
-        ///
-        /// # <weight>
-        /// - O(1).
-        /// - Limited storage reads.
-        /// - One DB write (event).
-        /// - Weight of derivative `call` execution + 10,000.
-        /// # </weight>
-        #[pallet::weight({
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		/// Ensures the simple majority is met and dispatches a call with `Root` origin.
+		///
+		/// # <weight>
+		/// - O(1).
+		/// - Limited storage reads.
+		/// - One DB write (event).
+		/// - Weight of derivative `call` execution + 10,000.
+		/// # </weight>
+		#[pallet::weight({
 			let dispatch_info = call.get_dispatch_info();
 			(dispatch_info.weight, dispatch_info.class)
 		})]
-        #[pallet::call_index(0)]
-        pub fn simple_majority(
-            origin: OriginFor<T>,
-            call: Box<<T as Config>::RuntimeCall>,
-        ) -> DispatchResultWithPostInfo {
-            T::SimpleMajorityOrigin::ensure_origin(origin)?;
+		#[pallet::call_index(0)]
+		pub fn simple_majority(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			T::SimpleMajorityOrigin::ensure_origin(origin)?;
 
-            let motion_result = Self::do_dispatch(call);
-            Self::deposit_event(Event::DispatchSimpleMajority { motion_result });
+			let motion_result = Self::do_dispatch(call);
+			Self::deposit_event(Event::DispatchSimpleMajority { motion_result });
 
-            Ok(Pays::No.into())
-        }
+			Ok(Pays::No.into())
+		}
 
-        /// Ensures the super majority is met and dispatches a call with `Root` origin.
-        ///
-        /// # <weight>
-        /// - O(1).
-        /// - Limited storage reads.
-        /// - One DB write (event).
-        /// - Weight of derivative `call` execution + 10,000.
-        /// # </weight>
-        #[pallet::weight({
+		/// Ensures the super majority is met and dispatches a call with `Root` origin.
+		///
+		/// # <weight>
+		/// - O(1).
+		/// - Limited storage reads.
+		/// - One DB write (event).
+		/// - Weight of derivative `call` execution + 10,000.
+		/// # </weight>
+		#[pallet::weight({
 			let dispatch_info = call.get_dispatch_info();
 			(dispatch_info.weight, dispatch_info.class)
 		})]
-        #[pallet::call_index(1)]
-        pub fn super_majority(
-            origin: OriginFor<T>,
-            call: Box<<T as Config>::RuntimeCall>,
-        ) -> DispatchResultWithPostInfo {
-            T::SuperMajorityOrigin::ensure_origin(origin)?;
+		#[pallet::call_index(1)]
+		pub fn super_majority(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			T::SuperMajorityOrigin::ensure_origin(origin)?;
 
-            let motion_result = Self::do_dispatch(call);
-            Self::deposit_event(Event::DispatchSuperMajority { motion_result });
+			let motion_result = Self::do_dispatch(call);
+			Self::deposit_event(Event::DispatchSuperMajority { motion_result });
 
-            Ok(Pays::No.into())
-        }
+			Ok(Pays::No.into())
+		}
 
-        /// Ensures unanimous voting is met and dispatches a call with `Root` origin.
-        ///
-        /// # <weight>
-        /// - O(1).
-        /// - Limited storage reads.
-        /// - One DB write (event).
-        /// - Weight of derivative `call` execution + 10,000.
-        /// # </weight>
-        #[pallet::weight({
+		/// Ensures unanimous voting is met and dispatches a call with `Root` origin.
+		///
+		/// # <weight>
+		/// - O(1).
+		/// - Limited storage reads.
+		/// - One DB write (event).
+		/// - Weight of derivative `call` execution + 10,000.
+		/// # </weight>
+		#[pallet::weight({
 			let dispatch_info = call.get_dispatch_info();
 			(dispatch_info.weight, dispatch_info.class)
 		})]
-        #[pallet::call_index(2)]
-        pub fn unanimous(
-            origin: OriginFor<T>,
-            call: Box<<T as Config>::RuntimeCall>,
-        ) -> DispatchResultWithPostInfo {
-            T::UnanimousOrigin::ensure_origin(origin)?;
+		#[pallet::call_index(2)]
+		pub fn unanimous(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			T::UnanimousOrigin::ensure_origin(origin)?;
 
-            let motion_result = Self::do_dispatch(call);
-            Self::deposit_event(Event::DispatchUnanimous { motion_result });
+			let motion_result = Self::do_dispatch(call);
+			Self::deposit_event(Event::DispatchUnanimous { motion_result });
 
-            Ok(Pays::No.into())
-        }
-    }
+			Ok(Pays::No.into())
+		}
+	}
 
-    impl<T: Config> Pallet<T> {
-        /// Helper to actually dispatch RuntimeCall.
-        ///
-        /// Should only be called after the origin is ensured.
-        ///
-        /// Returns the `DispatchResult` from the dispatched call.
-        fn do_dispatch(call: Box<<T as Config>::RuntimeCall>) -> DispatchResult {
-            let res = call.dispatch_bypass_filter(frame_system::RawOrigin::Root.into());
-            let motion_result = res.map(|_| ()).map_err(|e| e.error);
-            motion_result
-        }
-    }
+	impl<T: Config> Pallet<T> {
+		/// Helper to actually dispatch RuntimeCall.
+		///
+		/// Should only be called after the origin is ensured.
+		///
+		/// Returns the `DispatchResult` from the dispatched call.
+		fn do_dispatch(call: Box<<T as Config>::RuntimeCall>) -> DispatchResult {
+			let res = call.dispatch_bypass_filter(frame_system::RawOrigin::Root.into());
+			let motion_result = res.map(|_| ()).map_err(|e| e.error);
+			motion_result
+		}
+	}
 }

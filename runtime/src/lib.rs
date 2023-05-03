@@ -40,12 +40,12 @@ use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
 	traits::{
-        AsEnsureOriginWithArg, ConstU32, ConstU64, ConstU8, Currency, Everything, FindAuthor,
-        Imbalance, OnUnbalanced,
-    },
+		AsEnsureOriginWithArg, ConstU32, ConstU64, ConstU8, Currency, Everything, FindAuthor,
+		Imbalance, OnUnbalanced,
+	},
 	weights::{
-		ConstantMultiplier, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-		WeightToFeePolynomial, constants::WEIGHT_REF_TIME_PER_SECOND
+		constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier, Weight, WeightToFeeCoefficient,
+		WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 	PalletId,
 };
@@ -79,7 +79,8 @@ use fp_evm::weight_per_gas;
 use fp_rpc::TransactionStatus;
 use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
 use pallet_evm::{
-	Account as EVMAccount, EnsureAddressTruncated, FeeCalculator, HashedAddressMapping, Runner, EVMCurrencyAdapter, OnChargeEVMTransaction
+	Account as EVMAccount, EVMCurrencyAdapter, EnsureAddressTruncated, FeeCalculator,
+	HashedAddressMapping, OnChargeEVMTransaction, Runner,
 };
 
 mod precompiles;
@@ -357,7 +358,8 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees<Runtime>>;
+	type OnChargeTransaction =
+		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees<Runtime>>;
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
@@ -488,10 +490,9 @@ impl pallet_collator_selection::Config for Runtime {
 }
 
 impl pallet_sudo::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
 }
-
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
