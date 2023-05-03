@@ -5,7 +5,7 @@ use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::{sr25519, Pair, Public, H160, U256};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use std::{collections::BTreeMap, str::FromStr};
+use std::{collections::BTreeMap, str::FromStr, marker::PhantomData};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
@@ -102,6 +102,8 @@ pub fn development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
+				// Give Alice root privileges
+                Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 				1000.into(),
 			)
 		},
@@ -157,6 +159,8 @@ pub fn local_testnet_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
+				// Give Alice root privileges
+                Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 				1000.into(),
 			)
 		},
@@ -181,16 +185,53 @@ pub fn local_testnet_config() -> ChainSpec {
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
+	root_key: Option<AccountId>,
 	id: ParaId,
 ) -> frontier_parachain_runtime::GenesisConfig {
+
+	let alice = get_from_seed::<sr25519::Public>("Alice");
+	let bob = get_from_seed::<sr25519::Public>("Bob");
+
 	frontier_parachain_runtime::GenesisConfig {
 		system: frontier_parachain_runtime::SystemConfig {
 			code: frontier_parachain_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
 		},
+		// Configure additional assets here
+		// For example, this configures asset "ALT1" & "ALT2" with owners, alice and bob, respectively
+		assets: frontier_parachain_runtime::AssetsConfig {
+			assets: vec![
+				(1, alice.into(), true, 10_000_000_0000),
+				(2, bob.into(), true, 10_000_000_0000),
+			],
+			// Genesis metadata: Vec<(id, name, symbol, decimals)>
+			metadata: vec![
+				(1, "asset-1".into(), "ALT1".into(), 10),
+				(2, "asset-2".into(), "ALT2".into(), 10),
+			],
+			// Genesis accounts: Vec<(id, account_id, balance)>
+			accounts: vec![
+				(1, alice.into(), 50_000_000_0000),
+				(2, bob.into(), 50_000_000_0000),
+			],
+		},
 		balances: frontier_parachain_runtime::BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+		},
+		council: frontier_parachain_runtime::CouncilConfig {
+			phantom: PhantomData,
+			members: endowed_accounts
+				.iter()
+				.enumerate()
+				.filter_map(|(idx, acc)| {
+					if idx % 2 == 0 {
+						Some(acc.clone())
+					} else {
+						None
+					}
+				})
+				.collect::<Vec<_>>(),
 		},
 		parachain_info: frontier_parachain_runtime::ParachainInfoConfig { parachain_id: id },
 		collator_selection: frontier_parachain_runtime::CollatorSelectionConfig {
@@ -218,7 +259,7 @@ fn testnet_genesis(
 		polkadot_xcm: frontier_parachain_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
-
+		sudo : frontier_parachain_runtime::SudoConfig { key : root_key },
 		// EVM compatibility
 		evm_chain_id: frontier_parachain_runtime::EVMChainIdConfig { chain_id: 1000 },
 		evm: frontier_parachain_runtime::EVMConfig {
@@ -269,5 +310,6 @@ fn testnet_genesis(
 		ethereum: Default::default(),
 		dynamic_fee: Default::default(),
 		base_fee: Default::default(),
+	
 	}
 }

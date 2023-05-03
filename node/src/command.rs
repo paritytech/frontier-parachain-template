@@ -95,7 +95,7 @@ impl SubstrateCli for RelayChainCli {
 	}
 
 	fn support_url() -> String {
-		"https://github.com/paritytech/cumulus/issues/new".into()
+		"https://github.com/paritytech/frontier-parachain-template/issues/new".into()
 	}
 
 	fn copyright_start_year() -> i32 {
