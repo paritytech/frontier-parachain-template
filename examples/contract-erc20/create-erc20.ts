@@ -5,7 +5,7 @@ import * as web3Utils from 'web3-utils';
 import * as crypto from '@polkadot/util-crypto';
 
 // Provider is set to 127.0.0.1 for development
-const wsProvider = new WsProvider("ws://127.0.0.1:9944");
+const wsProvider = new WsProvider("ws://127.0.0.1:9910");
 
 // Keyring needed to sign using Alice account
 const keyring = new Keyring({ type: 'sr25519' });
