@@ -75,7 +75,6 @@ use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
 
 // Frontier
-use fp_evm::weight_per_gas;
 use fp_rpc::TransactionStatus;
 use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
 use pallet_evm::{
@@ -137,10 +136,11 @@ pub type SignedExtra = (
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
-	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+	fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
-pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
+pub type CheckedExtrinsic =
+	fp_self_contained::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra, H160>;
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
@@ -543,7 +543,7 @@ impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
 	{
 		if let Some(author_index) = F::find_author(digests) {
 			let authority_id = Aura::authorities()[author_index as usize].clone();
-			return Some(H160::from_slice(&authority_id.to_raw_vec()[4..24]))
+			return Some(H160::from_slice(&authority_id.to_raw_vec()[4..24]));
 		}
 		None
 	}
@@ -608,12 +608,11 @@ where
 	}
 }
 
-const BLOCK_GAS_LIMIT: u64 = 75_000_000;
-
 parameter_types! {
-	pub BlockGasLimit: U256 = U256::from(BLOCK_GAS_LIMIT);
+	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
 	pub PrecompilesValue: FrontierPrecompiles<Runtime> = FrontierPrecompiles::<_>::new();
-	pub WeightPerGas: Weight = Weight::from_ref_time(weight_per_gas(BLOCK_GAS_LIMIT, NORMAL_DISPATCH_RATIO, WEIGHT_MILLISECS_PER_BLOCK));
+	// pub WeightPerGas: Weight = Weight::from_ref_time(fp_evm::weight_per_gas(BLOCK_GAS_LIMIT, NORMAL_DISPATCH_RATIO, WEIGHT_MILLISECS_PER_BLOCK));
+	pub WeightPerGas: Weight = Weight::from_ref_time(WEIGHT_PER_GAS);
 }
 
 impl pallet_evm::Config for Runtime {
@@ -800,8 +799,9 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		len: usize,
 	) -> Option<Result<(), TransactionValidityError>> {
 		match self {
-			RuntimeCall::Ethereum(call) =>
-				call.pre_dispatch_self_contained(info, dispatch_info, len),
+			RuntimeCall::Ethereum(call) => {
+				call.pre_dispatch_self_contained(info, dispatch_info, len)
+			},
 			_ => None,
 		}
 	}
@@ -811,10 +811,11 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		info: Self::SignedInfo,
 	) -> Option<sp_runtime::DispatchResultWithInfo<PostDispatchInfoOf<Self>>> {
 		match self {
-			call @ RuntimeCall::Ethereum(pallet_ethereum::Call::transact { .. }) =>
+			call @ RuntimeCall::Ethereum(pallet_ethereum::Call::transact { .. }) => {
 				Some(call.dispatch(RuntimeOrigin::from(
 					pallet_ethereum::RawOrigin::EthereumTransaction(info),
-				))),
+				)))
+			},
 			_ => None,
 		}
 	}
@@ -1055,7 +1056,7 @@ impl_runtime_apis! {
 		fn extrinsic_filter(
 			xts: Vec<<Block as BlockT>::Extrinsic>,
 		) -> Vec<EthereumTransaction> {
-			xts.into_iter().filter_map(|xt| match xt.function {
+			xts.into_iter().filter_map(|xt| match xt.0.function {
 				RuntimeCall::Ethereum(transact { transaction }) => Some(transaction),
 				_ => None
 			}).collect::<Vec<EthereumTransaction>>()

@@ -37,7 +37,6 @@ use crate::eth::{
 	FrontierBlockImport as TFrontierBlockImport, FrontierPartialComponents,
 };
 
-type FrontierBlockImport = TFrontierBlockImport<Block, Arc<ParachainClient>, ParachainClient>;
 
 /// Native executor type.
 pub struct ParachainNativeExecutor;
@@ -61,6 +60,8 @@ type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
 type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, FrontierBlockImport, ParachainBackend>;
+
+type FrontierBlockImport = TFrontierBlockImport<Block, Arc<ParachainClient>, ParachainClient>;
 
 /// Starts a `ServiceBuilder` for a full service.
 ///
@@ -226,6 +227,7 @@ async fn start_node_impl(
 	// for ethereum-compatibility rpc.
 	parachain_config.rpc_id_provider = Some(Box::new(fc_rpc::EthereumSubIdProvider));
 	let overrides = crate::rpc::overrides_handle(client.clone());
+	
 	let eth_rpc_params = crate::rpc::EthDeps {
 		client: client.clone(),
 		pool: transaction_pool.clone(),
