@@ -5,6 +5,14 @@ const web3 = new Web3("http://127.0.0.1:9910");
 const ERC20_BYTECODE = require("./truffle/contracts/MyToken.json").bytecode;
 const STORAGE_SLOT = "0";
 
+const devAccount = () => {
+	const account = web3.eth.accounts.privateKeyToAccount("0xb9d2ea9a615f3165812e8d44de0d24da9bbd164b65c4f0573e1ce2c8dbd9c8df");
+	const mapStorageSlot = STORAGE_SLOT.padStart(64, '0');
+	const mapKey = account.address.toString().substring(2).padStart(64, '0');
+	const storageKey = web3Utils.sha3('0x'.concat(mapKey.concat(mapStorageSlot)));
+	return {...account, storageKey};
+}
+
 const createAccount = () => {
 	const account = web3.eth.accounts.create();
 	const mapStorageSlot = STORAGE_SLOT.padStart(64, '0');
@@ -16,7 +24,8 @@ const createAccount = () => {
 const main = async () => {
 
 	console.log("Generating accounts...");
-	const alice = createAccount();
+	// const alice = createAccount();
+	const alice = devAccount();
 	const bob = createAccount();
 
 	// Step 1: Creating the contract.
@@ -27,8 +36,8 @@ const main = async () => {
 	const createTransaction = await alice.signTransaction(
 		{
 			data: ERC20_BYTECODE,
-			value: "0x00",
-			gasPrice: "0x00",
+			// value: "0x00",
+			// gasPrice: "0x00",
 			gas: "0x100000",
 		});
 	console.log("Transaction", {
@@ -58,8 +67,8 @@ const main = async () => {
 		{
 			to: createReceipt.contractAddress,
 			data: inputCode,
-			value: "0x00",
-			gasPrice: "0x00",
+			// value: "0x00",
+			// gasPrice: "0x00",
 			gas: "0x100000",
 		});
 	console.log("Transaction", {
