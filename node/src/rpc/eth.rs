@@ -130,7 +130,7 @@ where
 			graph,
 			converter,
 			network.clone(),
-			vec![],
+			signers,
 			overrides.clone(),
 			frontier_backend.clone(),
 			is_authority,
