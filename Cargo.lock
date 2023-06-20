@@ -3447,6 +3447,7 @@ dependencies = [
  "scale-info",
  "smallvec",
  "sp-api",
+ "sp-arithmetic",
  "sp-block-builder",
  "sp-consensus-aura",
  "sp-core",

@@ -14,7 +14,6 @@ pub mod xcm_config;
 use codec::{Decode, Encode};
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
-use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_core::{
 	crypto::{ByteArray, KeyTypeId},
@@ -43,10 +42,7 @@ use frame_support::{
 		AsEnsureOriginWithArg, ConstU32, ConstU64, ConstU8, Currency, Everything, FindAuthor,
 		Imbalance, OnUnbalanced,
 	},
-	weights::{
-		constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier, Weight, WeightToFeeCoefficient,
-		WeightToFeeCoefficients, WeightToFeePolynomial,
-	},
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier, Weight},
 	PalletId,
 };
 use frame_system::{
@@ -68,6 +64,7 @@ pub use parachains_common::impls::{AccountIdOf, DealWithFees};
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 
+use fee::WeightToFee;
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 
 // XCM Imports
@@ -151,30 +148,112 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-/// node's balance type.
-///
-/// This should typically create a mapping between the following ranges:
-///   - `[0, MAXIMUM_BLOCK_WEIGHT]`
-///   - `[Balance::min, Balance::max]`
-///
-/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
-///   - Setting it to `0` will essentially disable the weight fee.
-///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
-pub struct WeightToFee;
-impl WeightToFeePolynomial for WeightToFee {
-	type Balance = Balance;
-	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		// in Rococo, extrinsic base weight (smallest non-zero weight) is mapped to 1 MILLIUNIT:
-		// in our template, we map to 1/10 of that, or 1/10 MILLIUNIT
-		let p = MILLIUNIT / 10;
-		let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
-		smallvec![WeightToFeeCoefficient {
-			degree: 1,
-			negative: false,
-			coeff_frac: Perbill::from_rational(p % q, q),
-			coeff_integer: p / q,
-		}]
+pub mod fee {
+	use super::{constants::CENTS, Balance, ExtrinsicBaseWeight};
+	use frame_support::weights::{
+		Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
+	};
+	use smallvec::smallvec;
+	use sp_arithmetic::traits::{BaseArithmetic, Unsigned};
+	use sp_runtime::{Perbill, SaturatedConversion};
+
+	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
+	/// node's balance type.
+	///
+	/// This should typically create a mapping between the following ranges:
+	///   - `[0, MAXIMUM_BLOCK_WEIGHT]`
+	///   - `[Balance::min, Balance::max]`
+	///
+	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
+	///   - Setting it to `0` will essentially disable the weight fee.
+	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
+	pub struct WeightToFee;
+	impl frame_support::weights::WeightToFee for WeightToFee {
+		type Balance = Balance;
+
+		fn weight_to_fee(weight: &Weight) -> Self::Balance {
+			let ref_time = Balance::saturated_from(weight.ref_time());
+			let proof_size = Balance::saturated_from(weight.proof_size());
+
+			let ref_polynomial = RefTimeToFee::polynomial();
+			let proof_polynomial = ProofSizeToFee::polynomial();
+
+			// Get fee amount from ref_time based on the RefTime polynomial
+			let ref_fee: Balance =
+				ref_polynomial.iter().fold(0, |acc, term| term.saturating_eval(acc, ref_time));
+
+			// Get fee amount from proof_size based on the ProofSize polynomial
+			let proof_fee: Balance = proof_polynomial
+				.iter()
+				.fold(0, |acc, term| term.saturating_eval(acc, proof_size));
+
+			// Take the maximum instead of the sum to charge by the more scarce resource.
+			ref_fee.max(proof_fee)
+		}
+	}
+
+	/// Maps the Ref time component of `Weight` to a fee.
+	pub struct RefTimeToFee;
+	impl WeightToFeePolynomial for RefTimeToFee {
+		type Balance = Balance;
+		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+			// in Polkadot, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
+			// in Asset Hub, we map to 1/10 of that, or 1/100 CENT
+			let p = CENTS;
+			let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
+			smallvec![WeightToFeeCoefficient {
+				degree: 1,
+				negative: false,
+				coeff_frac: Perbill::from_rational(p % q, q),
+				coeff_integer: p / q,
+			}]
+		}
+	}
+
+	/// Maps the proof size component of `Weight` to a fee.
+	pub struct ProofSizeToFee;
+	impl WeightToFeePolynomial for ProofSizeToFee {
+		type Balance = Balance;
+		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+			// Map 10kb proof to 1 CENT.
+			let p = CENTS;
+			let q = 10_000;
+
+			smallvec![WeightToFeeCoefficient {
+				degree: 1,
+				negative: false,
+				coeff_frac: Perbill::from_rational(p % q, q),
+				coeff_integer: p / q,
+			}]
+		}
+	}
+
+	// TODO: Refactor out this code to use `FeePolynomial` on versions using polkadot-v0.9.42 and above:
+	pub trait WeightCoefficientCalc<Balance> {
+		fn saturating_eval(&self, result: Balance, x: Balance) -> Balance;
+	}
+
+	impl<Balance> WeightCoefficientCalc<Balance> for WeightToFeeCoefficient<Balance>
+	where
+		Balance: BaseArithmetic + From<u32> + Copy + Unsigned + SaturatedConversion,
+	{
+		fn saturating_eval(&self, mut result: Balance, x: Balance) -> Balance {
+			let power = x.saturating_pow(self.degree.into());
+
+			let frac = self.coeff_frac * power; // Overflow safe since coeff_frac is strictly less than 1.
+			let integer = self.coeff_integer.saturating_mul(power);
+			// Do not add them together here to avoid an underflow.
+
+			if self.negative {
+				result = result.saturating_sub(frac);
+				result = result.saturating_sub(integer);
+			} else {
+				result = result.saturating_add(frac);
+				result = result.saturating_add(integer);
+			}
+
+			result
+		}
 	}
 }
 
