@@ -1,11 +1,10 @@
 # Frontier Parachain Template 
 
-A [Frontier](https://github.com/paritytech/frontier/) + [Cumulus](https://github.com/paritytech/cumulus/)-based Substrate node, ready for hacking ☁️..
+The **Frontier Parachain Template** is a ready-to-use EVM-based parachain (based on the [Frontier project](https://github.com/paritytech/frontier)), pre-configured with the [Assets](https://paritytech.github.io/substrate/master/pallet_assets/index.html) pallet, a simple Governance system ([Collective](https://paritytech.github.io/substrate/master/pallet_collective/index.html) & [Motion](https://github.com/paritytech/extended-parachain-template/tree/main/pallets/motion) pallets), and EVM precompiles.
 
-### 🔰 Description
+This is an ideal starting point for any Parachain project that needs to support legacy Solidity smart contracts, but that wants at the same time to benefit from the flexibility provided by Substrate, and the shared security of the Polkadot relay chain.
 
-This project is originally a fork of the [Substrate Parachain Template](https://github.com/substrate-developer-hub/substrate-parachain-template) which in turn is a fork of 
-[Substrate Node Template](https://github.com/substrate-developer-hub/substrate-node-template), modified to include dependencies required for registering this node as a **parathread** or **parachain**.
+This template is maintained by the **Delivery Services** team at **Parity**.
 
 ## 🚀 Getting Started
 
@@ -15,10 +14,10 @@ Make sure you have Rust installed along with everything that's needed to compile
 
 ### 🔧 Build
 
-1. Clone the template repository:
+1. Clone the frontier parachain template repository:
 
 ```sh
-git clone https://github.com/paritytech/frontier-parachin-template
+git clone https://github.com/paritytech/frontier-parachain-template
 ```
 
 2. Use `cargo` to build the parachain node without launching it:
