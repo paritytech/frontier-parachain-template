@@ -16,7 +16,7 @@ use sc_client_api::{
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 use sc_transaction_pool::ChainApi;
 use sc_transaction_pool_api::TransactionPool;
-use sp_api::ProvideRuntimeApi;
+use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::Block as BlockT;
 
@@ -34,17 +34,35 @@ pub struct FullDeps<C, P, A: ChainApi, CT> {
 	pub pool: Arc<P>,
 	/// Whether to deny unsafe calls
 	pub deny_unsafe: DenyUnsafe,
-	// /// Ethereum-compatibility specific dependencies.
+	/// Ethereum-compatibility specific dependencies.
 	pub eth: EthDeps<C, P, A, CT, Block>,
 }
 
-/// Instantiate all RPC extensions.
+pub struct DefaultEthConfig<C, BE>(std::marker::PhantomData<(C, BE)>);
+
+impl<C, BE> fc_rpc::EthConfig<Block, C> for DefaultEthConfig<C, BE>
+where
+	C: sc_client_api::StorageProvider<Block, BE> + Sync + Send + 'static,
+	BE: Backend<Block> + 'static,
+{
+	type EstimateGasAdapter = ();
+	type RuntimeStorageOverride =
+		fc_rpc::frontier_backend_client::SystemAccountId32StorageOverride<Block, C, BE>;
+}
+
+/// Instantiate all Full RPC extensions.
 pub fn create_full<C, P, BE, A, CT>(
 	deps: FullDeps<C, P, A, CT>,
 	subscription_task_executor: SubscriptionTaskExecutor,
+	pubsub_notification_sinks: Arc<
+		fc_mapping_sync::EthereumBlockNotificationSinks<
+			fc_mapping_sync::EthereumBlockNotification<Block>,
+		>,
+	>,
 ) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>
+		+ CallApiAt<Block>
 		+ StorageProvider<Block, BE>
 		+ BlockchainEvents<Block>
 		+ HeaderBackend<Block>
@@ -56,21 +74,26 @@ where
 	C::Api: sp_block_builder::BlockBuilder<Block>,
 	C::Api: fp_rpc::ConvertTransactionRuntimeApi<Block>,
 	C::Api: fp_rpc::EthereumRuntimeRPCApi<Block>,
+	BE: Backend<Block> + 'static,
 	P: TransactionPool<Block = Block> + 'static,
 	A: ChainApi<Block = Block> + 'static,
-	BE: Backend<Block> + 'static,
 	CT: fp_rpc::ConvertTransaction<<Block as BlockT>::Extrinsic> + Send + Sync + 'static,
 {
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 
-	let mut module = RpcExtension::new(());
+	let mut io = RpcExtension::new(());
 	let FullDeps { client, pool, deny_unsafe, eth } = deps;
 
-	module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
-	module.merge(TransactionPayment::new(client).into_rpc())?;
+	io.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
+	io.merge(TransactionPayment::new(client).into_rpc())?;
 
 	// Ethereum compatibility RPCs
-	let module = create_eth::<_, _, _, _, _, _>(module, eth, subscription_task_executor)?;
-	Ok(module)
+	let io = create_eth::<_, _, _, _, _, _, DefaultEthConfig<C, BE>>(
+		io,
+		eth,
+		subscription_task_executor,
+		pubsub_notification_sinks,
+	)?;
+	Ok(io)
 }

@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
 use codec::Encode;
 use cumulus_client_cli::generate_genesis_block;
@@ -10,7 +10,10 @@ use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
 	NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
-use sc_service::config::{BasePath, /*DatabaseSource,*/ PrometheusConfig};
+use sc_service::{
+	config::{BasePath, /*DatabaseSource,*/ PrometheusConfig},
+	PartialComponents,
+};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
 // Frontier
@@ -33,7 +36,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Parachain Collator Template".into()
+		"Frontier Parachain Collator Template".into()
 	}
 
 	fn impl_version() -> String {
@@ -42,7 +45,7 @@ impl SubstrateCli for Cli {
 
 	fn description() -> String {
 		format!(
-			"Parachain Collator Template\n\nThe command-line arguments provided first will be \
+			"Frontier Parachain Collator Template\n\nThe command-line arguments provided first will be \
 		passed to the parachain node, while the arguments provided after -- will be passed \
 		to the relay chain node.\n\n\
 		{} <parachain-args> -- <relay-chain-args>",
@@ -73,7 +76,7 @@ impl SubstrateCli for Cli {
 
 impl SubstrateCli for RelayChainCli {
 	fn impl_name() -> String {
-		"Parachain Collator Template".into()
+		"Frontier Parachain Collator Template".into()
 	}
 
 	fn impl_version() -> String {
@@ -82,7 +85,7 @@ impl SubstrateCli for RelayChainCli {
 
 	fn description() -> String {
 		format!(
-			"Parachain Collator Template\n\nThe command-line arguments provided first will be \
+			"Frontier Parachain Collator Template\n\nThe command-line arguments provided first will be \
 		passed to the parachain node, while the arguments provided after -- will be passed \
 		to the relay chain node.\n\n\
 		{} <parachain-args> -- <relay-chain-args>",
@@ -285,9 +288,13 @@ pub fn run() -> Result<()> {
 		Some(Subcommand::FrontierDb(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| {
-				let params = crate::service::new_partial(&config, &cli.eth)?;
-				let client = params.client;
-				let (_, _, _, frontier_backend) = params.other;
+				let PartialComponents { client, other, .. } =
+					crate::service::new_partial(&config, &cli.eth)?;
+				let (_, _, _, frontier_backend, _) = other;
+				let frontier_backend = match frontier_backend {
+					fc_db::Backend::KeyValue(kv) => Arc::new(kv),
+					_ => panic!("Only fc_db::Backend::KeyValue supported"),
+				};
 				cmd.run(client, frontier_backend)
 			})
 		},
