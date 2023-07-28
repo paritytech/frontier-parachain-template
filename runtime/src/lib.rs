@@ -14,6 +14,7 @@ pub mod xcm_config;
 use codec::{Decode, Encode};
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+use cumulus_primitives_core::relay_chain::MAX_POV_SIZE;
 use sp_api::impl_runtime_apis;
 use sp_core::{
 	crypto::{ByteArray, KeyTypeId},
@@ -40,7 +41,7 @@ use frame_support::{
 	parameter_types,
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, ConstU64, ConstU8, Currency, Everything, FindAuthor,
-		Imbalance, OnUnbalanced,
+		Imbalance, OnFinalize, OnUnbalanced,
 	},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier, Weight},
 	PalletId,
@@ -76,7 +77,7 @@ use fp_rpc::TransactionStatus;
 use pallet_ethereum::{Call::transact, PostLogContent, Transaction as EthereumTransaction};
 use pallet_evm::{
 	Account as EVMAccount, EVMCurrencyAdapter, EnsureAddressTruncated, FeeCalculator,
-	HashedAddressMapping, OnChargeEVMTransaction, Runner,
+	HashedAddressMapping, OnChargeEVMTransaction, Runner, GasWeightMapping
 };
 
 mod precompiles;
@@ -149,15 +150,13 @@ pub type Executive = frame_executive::Executive<
 >;
 
 pub mod fee {
-	use crate::MILLIUNIT;
-
-use super::{Balance, ExtrinsicBaseWeight};
+	use super::{constants::MILLIUNIT, Balance, ExtrinsicBaseWeight};
 	use frame_support::weights::{
-		Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
+		FeePolynomial, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
 	};
 	use smallvec::smallvec;
-	use sp_arithmetic::traits::{BaseArithmetic, Unsigned};
-	use sp_runtime::{Perbill, SaturatedConversion};
+	use sp_runtime::Perbill;
 
 	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
 	/// node's balance type.
@@ -174,20 +173,14 @@ use super::{Balance, ExtrinsicBaseWeight};
 		type Balance = Balance;
 
 		fn weight_to_fee(weight: &Weight) -> Self::Balance {
-			let ref_time = Balance::saturated_from(weight.ref_time());
-			let proof_size = Balance::saturated_from(weight.proof_size());
-
-			let ref_polynomial = RefTimeToFee::polynomial();
-			let proof_polynomial = ProofSizeToFee::polynomial();
+			let ref_polynomial: FeePolynomial<Balance> = RefTimeToFee::polynomial().into();
+			let proof_polynomial: FeePolynomial<Balance> = ProofSizeToFee::polynomial().into();
 
 			// Get fee amount from ref_time based on the RefTime polynomial
-			let ref_fee: Balance =
-				ref_polynomial.iter().fold(0, |acc, term| term.saturating_eval(acc, ref_time));
+			let ref_fee: Balance = ref_polynomial.eval(weight.ref_time());
 
 			// Get fee amount from proof_size based on the ProofSize polynomial
-			let proof_fee: Balance = proof_polynomial
-				.iter()
-				.fold(0, |acc, term| term.saturating_eval(acc, proof_size));
+			let proof_fee: Balance = proof_polynomial.eval(weight.proof_size());
 
 			// Take the maximum instead of the sum to charge by the more scarce resource.
 			ref_fee.max(proof_fee)
@@ -229,36 +222,7 @@ use super::{Balance, ExtrinsicBaseWeight};
 			}]
 		}
 	}
-
-	// TODO: Refactor out this code to use `FeePolynomial` on versions using polkadot-v0.9.42 and above:
-	pub trait WeightCoefficientCalc<Balance> {
-		fn saturating_eval(&self, result: Balance, x: Balance) -> Balance;
 	}
-
-	impl<Balance> WeightCoefficientCalc<Balance> for WeightToFeeCoefficient<Balance>
-	where
-		Balance: BaseArithmetic + From<u32> + Copy + Unsigned + SaturatedConversion,
-	{
-		fn saturating_eval(&self, mut result: Balance, x: Balance) -> Balance {
-			let power = x.saturating_pow(self.degree.into());
-
-			let frac = self.coeff_frac * power; // Overflow safe since coeff_frac is strictly less than 1.
-			let integer = self.coeff_integer.saturating_mul(power);
-			// Do not add them together here to avoid an underflow.
-
-			if self.negative {
-				result = result.saturating_sub(frac);
-				result = result.saturating_sub(integer);
-			} else {
-				result = result.saturating_add(frac);
-				result = result.saturating_add(integer);
-			}
-
-			result
-		}
-	}
-}
-
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -306,10 +270,8 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 /// We allow for 0.5 of a second of compute with a 12 second average block time.
 pub const WEIGHT_MILLISECS_PER_BLOCK: u64 = WEIGHT_REF_TIME_PER_SECOND.saturating_div(2);
-const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
-	WEIGHT_MILLISECS_PER_BLOCK,
-	cumulus_primitives_core::relay_chain::MAX_POV_SIZE as u64,
-);
+const MAXIMUM_BLOCK_WEIGHT: Weight =
+	Weight::from_parts(WEIGHT_MILLISECS_PER_BLOCK, MAX_POV_SIZE as u64);
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -425,9 +387,13 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxReserves = ConstU32<50>;
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
 	type ReserveIdentifier = [u8; 8];
+	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -578,6 +544,7 @@ parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
 	pub const CouncilMaxProposals: u32 = 10;
 	pub const CouncilMaxMembers: u32 = 25;
+	pub MaxCollectivesProposalWeight : Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -590,6 +557,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxProposals = CouncilMaxProposals;
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type MaxProposalWeight = MaxCollectivesProposalWeight;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
@@ -637,7 +605,7 @@ impl<R> OnUnbalanced<NegativeImbalance<R>> for EVMDealWithFees<R>
 where
 	R: pallet_balances::Config + pallet_collator_selection::Config + core::fmt::Debug,
 	AccountIdOf<R>:
-		From<polkadot_primitives::v2::AccountId> + Into<polkadot_primitives::v2::AccountId>,
+		From<polkadot_primitives::v4::AccountId> + Into<polkadot_primitives::v4::AccountId>,
 	<R as frame_system::Config>::RuntimeEvent: From<pallet_balances::Event<R>>,
 {
 	fn on_nonzero_unbalanced(amount: NegativeImbalance<R>) {
@@ -691,6 +659,10 @@ where
 
 parameter_types! {
 	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
+	pub GasLimitPovSizeRatio : u64 = {
+		let block_gas_limit : u64 = BlockGasLimit::get().min(u64::MAX.into()).low_u64();
+		block_gas_limit.saturating_div(MAX_POV_SIZE as u64)
+	};
 	pub PrecompilesValue: FrontierPrecompiles<Runtime> = FrontierPrecompiles::<_>::new();
 	pub WeightPerGas: Weight = Weight::from_parts(WEIGHT_PER_GAS, 0);
 }
@@ -712,6 +684,7 @@ impl pallet_evm::Config for Runtime {
 	type Runner = pallet_evm::runner::stack::Runner<Self>;
 	type OnChargeTransaction = EVMTransactionChargeHandler<EVMDealWithFees<Runtime>>;
 	type OnCreate = ();
+	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
 	type Timestamp = Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 	type FindAuthor = FindAuthorTruncated<Aura>;
@@ -953,6 +926,13 @@ impl_runtime_apis! {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
 		}
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
+		}
+
+		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+			Runtime::metadata_versions()
+		}
 	}
 
 	impl sp_block_builder::BlockBuilder<Block> for Runtime {
@@ -1062,6 +1042,41 @@ impl_runtime_apis! {
 			let is_transactional = false;
 			let validate = true;
 			let evm_config = config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config());
+
+			let mut estimated_transaction_len = data.len() +
+				20 + // to
+				20 + // from
+				32 + // value
+				32 + // gas_limit
+				32 + // nonce
+				1 + // TransactionAction
+				8 + // chain id
+				65; // signature
+
+			if max_fee_per_gas.is_some() {
+				estimated_transaction_len += 32;
+			}
+			if max_priority_fee_per_gas.is_some() {
+				estimated_transaction_len += 32;
+			}
+			if access_list.is_some() {
+				estimated_transaction_len += access_list.encoded_size();
+			}
+
+			let gas_limit = gas_limit.min(u64::MAX.into()).low_u64();
+			let without_base_extrinsic_weight = true;
+
+			let (weight_limit, proof_size_base_cost) =
+				match <Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+					gas_limit,
+					without_base_extrinsic_weight
+				) {
+					weight_limit if weight_limit.proof_size() > 0 => {
+						(Some(weight_limit), Some(estimated_transaction_len as u64))
+					}
+					_ => (None, None),
+				};
+
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
 				to,
@@ -1074,6 +1089,8 @@ impl_runtime_apis! {
 				access_list.unwrap_or_default(),
 				is_transactional,
 				validate,
+				weight_limit,
+				proof_size_base_cost,
 				evm_config,
 			).map_err(|err| err.error.into())
 		}
@@ -1100,6 +1117,44 @@ impl_runtime_apis! {
 			let is_transactional = false;
 			let validate = true;
 			let evm_config = config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config());
+
+			let mut estimated_transaction_len = data.len() +
+				20 + // from
+				32 + // value
+				32 + // gas_limit
+				32 + // nonce
+				1 + // TransactionAction
+				8 + // chain id
+				65; // signature
+
+			if max_fee_per_gas.is_some() {
+				estimated_transaction_len += 32;
+			}
+			if max_priority_fee_per_gas.is_some() {
+				estimated_transaction_len += 32;
+			}
+			if access_list.is_some() {
+				estimated_transaction_len += access_list.encoded_size();
+			}
+
+			let gas_limit = if gas_limit > U256::from(u64::MAX) {
+				u64::MAX
+			} else {
+				gas_limit.low_u64()
+			};
+			let without_base_extrinsic_weight = true;
+
+			let (weight_limit, proof_size_base_cost) =
+				match <Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+					gas_limit,
+					without_base_extrinsic_weight
+				) {
+					weight_limit if weight_limit.proof_size() > 0 => {
+						(Some(weight_limit), Some(estimated_transaction_len as u64))
+					}
+					_ => (None, None),
+				};
+
 			<Runtime as pallet_evm::Config>::Runner::create(
 				from,
 				data,
@@ -1111,6 +1166,8 @@ impl_runtime_apis! {
 				access_list.unwrap_or_default(),
 				is_transactional,
 				validate,
+				weight_limit,
+				proof_size_base_cost,
 				evm_config,
 			).map_err(|err| err.error.into())
 		}
@@ -1153,6 +1210,21 @@ impl_runtime_apis! {
 		}
 
 		fn gas_limit_multiplier_support() {}
+
+		fn pending_block(
+			xts: Vec<<Block as BlockT>::Extrinsic>,
+		) -> (Option<pallet_ethereum::Block>, Option<Vec<TransactionStatus>>) {
+			for ext in xts.into_iter() {
+				let _ = Executive::apply_extrinsic(ext);
+			}
+
+			Ethereum::on_finalize(System::block_number() + 1);
+
+			(
+				pallet_ethereum::CurrentBlock::<Runtime>::get(),
+				pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
+			)
+		}
 	}
 
 	impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {
