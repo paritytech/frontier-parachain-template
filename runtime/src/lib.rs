@@ -77,7 +77,7 @@ use fp_rpc::TransactionStatus;
 use pallet_ethereum::{Call::transact, PostLogContent, Transaction as EthereumTransaction};
 use pallet_evm::{
 	Account as EVMAccount, EVMCurrencyAdapter, EnsureAddressTruncated, FeeCalculator,
-	HashedAddressMapping, OnChargeEVMTransaction, Runner, GasWeightMapping
+	GasWeightMapping, HashedAddressMapping, OnChargeEVMTransaction, Runner,
 };
 
 mod precompiles;
@@ -222,7 +222,7 @@ pub mod fee {
 			}]
 		}
 	}
-	}
+}
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades

@@ -198,6 +198,6 @@ where
 
 	io.merge(Web3::new(client).into_rpc())?;
 	io.merge(tx_pool.into_rpc())?;
-	
+
 	Ok(io)
 }
