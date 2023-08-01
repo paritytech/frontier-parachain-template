@@ -149,7 +149,9 @@ pub type Executive = frame_executive::Executive<
 >;
 
 pub mod fee {
-	use super::{constants::CENTS, Balance, ExtrinsicBaseWeight};
+	use crate::MILLIUNIT;
+
+use super::{Balance, ExtrinsicBaseWeight};
 	use frame_support::weights::{
 		Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	};
@@ -197,9 +199,9 @@ pub mod fee {
 	impl WeightToFeePolynomial for RefTimeToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// in Polkadot, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
-			// in Asset Hub, we map to 1/10 of that, or 1/100 CENT
-			let p = CENTS;
+			// in Rococo, extrinsic base weight (smallest non-zero weight) is mapped to 1 MILLIUNIT:
+			// in our template, we map to 1/10 of that, or 1/10 MILLIUNIT
+			let p = MILLIUNIT / 10;
 			let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
@@ -215,8 +217,8 @@ pub mod fee {
 	impl WeightToFeePolynomial for ProofSizeToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// Map 10kb proof to 1 CENT.
-			let p = CENTS;
+			// Map 10kb proof to 1/10 MILLIUNIT.
+			let p = MILLIUNIT / 10;
 			let q = 10_000;
 
 			smallvec![WeightToFeeCoefficient {
