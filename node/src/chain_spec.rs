@@ -250,6 +250,7 @@ fn testnet_genesis(
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 		},
 		sudo: frontier_parachain_runtime::SudoConfig { key: root_key },
+		transaction_payment: Default::default(),
 		// EVM compatibility
 		evm_chain_id: frontier_parachain_runtime::EVMChainIdConfig { chain_id: 1000 },
 		evm: frontier_parachain_runtime::EVMConfig {
@@ -295,18 +296,18 @@ fn testnet_genesis(
 					},
 				);
 				map.insert(
-                    // H160 address of dev account
+					// H160 address of dev account
 					// Private key : 0xb9d2ea9a615f3165812e8d44de0d24da9bbd164b65c4f0573e1ce2c8dbd9c8df
-                    H160::from_str("C0F0f4ab324C46e55D02D0033343B4Be8A55532d")
-                        .expect("internal H160 is valid; qed"),
-                    fp_evm::GenesisAccount {
-                        balance: U256::from_str("0xef000000000000000000000000000")
-                            .expect("internal U256 is valid; qed"),
-                        code: Default::default(),
-                        nonce: Default::default(),
-                        storage: Default::default(),
-                    },
-                );
+					H160::from_str("C0F0f4ab324C46e55D02D0033343B4Be8A55532d")
+						.expect("internal H160 is valid; qed"),
+					fp_evm::GenesisAccount {
+						balance: U256::from_str("0xef000000000000000000000000000")
+							.expect("internal U256 is valid; qed"),
+						code: Default::default(),
+						nonce: Default::default(),
+						storage: Default::default(),
+					},
+				);
 				map
 			},
 		},
