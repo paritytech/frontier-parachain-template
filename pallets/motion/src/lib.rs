@@ -5,6 +5,12 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
+pub mod weights;
+pub use weights::WeightInfo;
+
 use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 
@@ -32,6 +38,7 @@ pub mod pallet {
 		type SimpleMajorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type SuperMajorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type UnanimousOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::event]
@@ -60,7 +67,7 @@ pub mod pallet {
 		/// # </weight>
 		#[pallet::weight({
 			let dispatch_info = call.get_dispatch_info();
-			(dispatch_info.weight, dispatch_info.class)
+			(T::WeightInfo::simple_majority().saturating_add(dispatch_info.weight), dispatch_info.class)
 		})]
 		#[pallet::call_index(0)]
 		pub fn simple_majority(
@@ -85,7 +92,7 @@ pub mod pallet {
 		/// # </weight>
 		#[pallet::weight({
 			let dispatch_info = call.get_dispatch_info();
-			(dispatch_info.weight, dispatch_info.class)
+			(T::WeightInfo::super_majority().saturating_add(dispatch_info.weight), dispatch_info.class)
 		})]
 		#[pallet::call_index(1)]
 		pub fn super_majority(
@@ -110,7 +117,7 @@ pub mod pallet {
 		/// # </weight>
 		#[pallet::weight({
 			let dispatch_info = call.get_dispatch_info();
-			(dispatch_info.weight, dispatch_info.class)
+			(T::WeightInfo::unanimous().saturating_add(dispatch_info.weight), dispatch_info.class)
 		})]
 		#[pallet::call_index(2)]
 		pub fn unanimous(
