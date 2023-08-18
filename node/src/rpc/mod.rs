@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use frontier_parachain_runtime::{opaque::Block, AccountId, Balance, Index as Nonce};
+use frontier_parachain_runtime::{opaque::Block, AccountId, Balance, Nonce};
 
 use sc_client_api::{
 	backend::{AuxStore, Backend, StorageProvider},
@@ -19,6 +19,7 @@ use sc_transaction_pool_api::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::Block as BlockT;
+use substrate_frame_rpc_system::SystemApiServer;
 
 mod eth;
 pub use self::eth::{create_eth, overrides_handle, EthDeps};
@@ -69,6 +70,7 @@ where
 		+ AuxStore
 		+ HeaderMetadata<Block, Error = BlockChainError>
 		+ 'static,
+	C: CallApiAt<Block>,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: sp_block_builder::BlockBuilder<Block>,
@@ -80,7 +82,7 @@ where
 	CT: fp_rpc::ConvertTransaction<<Block as BlockT>::Extrinsic> + Send + Sync + 'static,
 {
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
-	use substrate_frame_rpc_system::{System, SystemApiServer};
+	use substrate_frame_rpc_system::System;
 
 	let mut io = RpcExtension::new(());
 	let FullDeps { client, pool, deny_unsafe, eth } = deps;
