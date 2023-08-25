@@ -11,13 +11,13 @@ version = "0.9.430"
 
 [dependencies]
 async-trait = "0.1"
-clap = {version = "4.2.3", features = ["derive", "deprecated"]}
-codec = {package = "parity-scale-codec", version = "3.2.1"}
+clap = {version = "4.3.2", features = ["derive", "deprecated"]}
+codec = {package = "parity-scale-codec", version = "3.6.4"}
 color-print = "0.3.4"
 futures = "0.3.28"
 jsonrpsee = {version = "0.16.2", features = ["server", "macros"]}
 log = "0.4.17"
-serde = {version = "1.0.160", features = ["derive"]}
+serde = {version = "1.0.186", features = ["derive"]}
 
 # Local
 frontier-parachain-runtime = {path = "../runtime"}
