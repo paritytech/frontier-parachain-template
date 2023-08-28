@@ -241,6 +241,7 @@ async fn start_node_impl(
 	let validator = parachain_config.role.is_authority();
 	let prometheus_registry = parachain_config.prometheus_registry().cloned();
 	let import_queue_service = import_queue.service();
+	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
 
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
 		build_network(BuildNetworkParams {
@@ -248,6 +249,7 @@ async fn start_node_impl(
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			para_id,
+			net_config,
 			spawn_handle: task_manager.spawn_handle(),
 			relay_chain_interface: relay_chain_interface.clone(),
 			import_queue,

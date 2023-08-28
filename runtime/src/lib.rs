@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+#![cfg_attr(feature = "runtime-benchmarks", deny(unused_crate_dependencies))]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -85,7 +86,7 @@ mod precompiles;
 use precompiles::FrontierPrecompiles;
 
 /// Import the template pallet.
-pub use pallet_template;
+pub use pallet_parachain_template;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -544,6 +545,7 @@ impl pallet_collator_selection::Config for Runtime {
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
+	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -747,7 +749,7 @@ impl pallet_hotfix_sufficients::Config for Runtime {
 }
 
 /// Configure the pallet template in pallets/template.
-impl pallet_template::Config for Runtime {
+impl pallet_parachain_template::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
 
@@ -800,7 +802,7 @@ construct_runtime!(
 		HotfixSufficients: pallet_hotfix_sufficients = 45,
 
 		// Template
-		TemplatePallet: pallet_template = 50,
+		TemplatePallet: pallet_parachain_template = 50,
 	}
 );
 
@@ -894,8 +896,10 @@ extern crate frame_benchmarking;
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	define_benchmarks!(
+		[frame_benchmarking, BaselineBench::<Runtime>]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
+		[pallet_sudo, Sudo]
 		[pallet_assets, Assets]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
@@ -1319,8 +1323,10 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{Benchmarking, BenchmarkList};
+			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
+
+			use baseline::Pallet as BaselineBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 			use pallet_hotfix_sufficients::Pallet as PalletHotfixSufficients;
@@ -1336,9 +1342,11 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark};
+			use frame_benchmarking::{baseline::Pallet as BaselineBench, Benchmarking, BenchmarkBatch, add_benchmark};
 			use pallet_evm::Pallet as PalletEvmBench;
-			use pallet_hotfix_sufficients::Pallet as PalletHotfixSufficients;
+			use pallet_hotfix_sufficients::Pallet as PalletHotfixSufficientsBench;
+
+			impl frame_benchmarking::baseline::Config for Runtime {}
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {}
@@ -1353,7 +1361,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 			add_benchmarks!(params, batches);
 			add_benchmark!(params, batches, pallet_evm, PalletEvmBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_hotfix_sufficients, PalletHotfixSufficients::<Runtime>);
+			add_benchmark!(params, batches, pallet_hotfix_sufficients, PalletHotfixSufficientsBench::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
