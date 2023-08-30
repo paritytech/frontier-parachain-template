@@ -9,7 +9,7 @@ use std::{collections::BTreeMap, marker::PhantomData, str::FromStr};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
-	sc_service::GenericChainSpec<frontier_parachain_runtime::GenesisConfig, Extensions>;
+	sc_service::GenericChainSpec<frontier_parachain_runtime::RuntimeGenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -187,15 +187,16 @@ fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	root_key: Option<AccountId>,
 	id: ParaId,
-) -> frontier_parachain_runtime::GenesisConfig {
+) -> frontier_parachain_runtime::RuntimeGenesisConfig {
 	let alice = get_from_seed::<sr25519::Public>("Alice");
 	let bob = get_from_seed::<sr25519::Public>("Bob");
 
-	frontier_parachain_runtime::GenesisConfig {
+	frontier_parachain_runtime::RuntimeGenesisConfig {
 		system: frontier_parachain_runtime::SystemConfig {
 			code: frontier_parachain_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
+			..Default::default()
 		},
 		// Configure additional assets here
 		// For example, this configures asset "ALT1" & "ALT2" with owners, alice and bob, respectively
@@ -223,7 +224,10 @@ fn testnet_genesis(
 				.filter_map(|(idx, acc)| if idx % 2 == 0 { Some(acc.clone()) } else { None })
 				.collect::<Vec<_>>(),
 		},
-		parachain_info: frontier_parachain_runtime::ParachainInfoConfig { parachain_id: id },
+		parachain_info: frontier_parachain_runtime::ParachainInfoConfig {
+			parachain_id: id,
+			..Default::default()
+		},
 		collator_selection: frontier_parachain_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
@@ -248,11 +252,15 @@ fn testnet_genesis(
 		parachain_system: Default::default(),
 		polkadot_xcm: frontier_parachain_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
+			..Default::default()
 		},
 		sudo: frontier_parachain_runtime::SudoConfig { key: root_key },
 		transaction_payment: Default::default(),
 		// EVM compatibility
-		evm_chain_id: frontier_parachain_runtime::EVMChainIdConfig { chain_id: 1000 },
+		evm_chain_id: frontier_parachain_runtime::EVMChainIdConfig {
+			chain_id: 1000,
+			..Default::default()
+		},
 		evm: frontier_parachain_runtime::EVMConfig {
 			accounts: {
 				let mut map = BTreeMap::new();
@@ -310,6 +318,7 @@ fn testnet_genesis(
 				);
 				map
 			},
+			..Default::default()
 		},
 		ethereum: Default::default(),
 		dynamic_fee: Default::default(),
