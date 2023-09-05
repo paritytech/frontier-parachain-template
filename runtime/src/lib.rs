@@ -495,6 +495,20 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
+	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
+	pub const PreimageByteDeposit: Balance = deposit(0, 1);
+}
+
+impl pallet_preimage::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = PreimageByteDeposit;
+}
+
+parameter_types! {
 	pub const AssetDeposit: Balance = 10 * UNIT;
 	pub const AssetAccountDeposit: Balance = deposit(1, 16);
 	pub const ApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
@@ -781,6 +795,7 @@ construct_runtime!(
 		// Utility
 		Utility: pallet_utility = 4,
 		Multisig: pallet_multisig = 5,
+		Preimage: pallet_preimage = 6,
 
 		// Monetary stuff.
 		Assets: pallet_assets = 9,
@@ -921,6 +936,7 @@ mod benches {
 		[pallet_evm, EVM]
 		[pallet_motion, Motion]
 		[pallet_multisig, Multisig]
+		[pallet_preimage, Preimage]
 	);
 }
 
