@@ -3745,6 +3745,7 @@ dependencies = [
  "pallet-evm-precompile-simple",
  "pallet-hotfix-sufficients",
  "pallet-motion",
+ "pallet-multisig",
  "pallet-session",
  "pallet-sudo",
  "pallet-template",
