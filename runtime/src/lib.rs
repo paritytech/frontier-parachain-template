@@ -452,6 +452,25 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
 }
 
 parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+	RuntimeBlockWeights::get().max_block;
+	pub const NoPreimagePostponement: Option<u32> = Some(10);
+}
+
+impl pallet_scheduler::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type PalletsOrigin = OriginCaller;
+	type RuntimeCall = RuntimeCall;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
+	type OriginPrivilegeCmp = frame_support::traits::EqualPrivilegeOnly;
+	type MaxScheduledPerBlock = ConstU32<512>;
+	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
+	type Preimages = Preimage;
+}
+
+parameter_types! {
 	pub const Period: u32 = 6 * HOURS;
 	pub const Offset: u32 = 0;
 }
@@ -492,6 +511,20 @@ impl pallet_multisig::Config for Runtime {
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = ConstU32<100>;
 	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
+	pub const PreimageByteDeposit: Balance = deposit(0, 1);
+}
+
+impl pallet_preimage::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = PreimageByteDeposit;
 }
 
 parameter_types! {
@@ -781,6 +814,8 @@ construct_runtime!(
 		// Utility
 		Utility: pallet_utility = 4,
 		Multisig: pallet_multisig = 5,
+		Preimage: pallet_preimage = 6,
+		Scheduler: pallet_scheduler = 7,
 
 		// Monetary stuff.
 		Assets: pallet_assets = 9,
@@ -921,6 +956,8 @@ mod benches {
 		[pallet_evm, EVM]
 		[pallet_motion, Motion]
 		[pallet_multisig, Multisig]
+		[pallet_preimage, Preimage]
+		[pallet_scheduler, Scheduler]
 	);
 }
 

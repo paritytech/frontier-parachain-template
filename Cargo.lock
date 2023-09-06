@@ -3746,6 +3746,8 @@ dependencies = [
  "pallet-hotfix-sufficients",
  "pallet-motion",
  "pallet-multisig",
+ "pallet-preimage",
+ "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
  "pallet-template",
