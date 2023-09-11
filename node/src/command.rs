@@ -215,14 +215,11 @@ pub fn run() -> Result<()> {
 			})
 		},
 		Some(Subcommand::ExportGenesisState(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config, eth_cfg| {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| {
+				let partials = new_partial(&config, &eth_cfg)?;
 				let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-				Ok(async move {
-					cmd.run::<frontier_parachain_runtime::opaque::Block>(
-						&*spec,
-						&*components.client,
-					)
-				})
+				cmd.run::<frontier_parachain_runtime::opaque::Block>(&*spec, &*partials.client)
 			})
 		},
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
