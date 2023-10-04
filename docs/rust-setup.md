@@ -9,23 +9,23 @@ source ~/.cargo/env
 Ubuntu: 
 ```sh
 sudo apt update
-sudo apt install -y cmake pkg-config libssl-dev git gcc build-essential git clang libclang-dev
+sudo apt install -y cmake pkg-config libssl-dev git gcc build-essential git clang libclang-dev protobuf-compiler
 ```
 Arch Linux:
 ```sh
-pacman -Syu --needed --noconfirm cmake gcc openssl-1.0 pkgconf git clang
+pacman -Syu --needed --noconfirm cmake gcc openssl-1.0 pkgconf git clang protobuf
 export OPENSSL_LIB_DIR="/usr/lib/openssl-1.0";
 export OPENSSL_INCLUDE_DIR="/usr/include/openssl-1.0"
 ```
 Mac OS:
 ```sh
 brew update
-brew install openssl cmake llvm
+brew install openssl cmake llvm protobuf
 ```
 
-- ### Install the `wasm` target and the `nightly` toolchain for rust
+- ### Install the `wasm` target for your rust toolchain
 
 ```sh
-rustup update nightly
-rustup target add wasm32-unknown-unknown --toolchain nightly
+rustup update
+rustup target add wasm32-unknown-unknown
 ```
