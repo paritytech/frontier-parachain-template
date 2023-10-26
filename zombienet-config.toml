@@ -3,7 +3,7 @@ timeout = 1000
 
 [relaychain]
 chain = "rococo-local"
-default_command = "../bin/polkadot"
+default_command = "./bin/polkadot"
 
   [[relaychain.nodes]]
   name = "alice"

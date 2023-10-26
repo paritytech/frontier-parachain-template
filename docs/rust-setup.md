@@ -23,9 +23,21 @@ brew update
 brew install openssl cmake llvm
 ```
 
-- ### Install the `wasm` target and the `nightly` toolchain for rust
+You may also be required to install a `protobuf` compiler:
 
 ```sh
-rustup update nightly
-rustup target add wasm32-unknown-unknown --toolchain nightly
+# Ubuntu
+sudo apt install -y protobuf-compiler
+
+# Arch
+pacman -Syu --needed --noconfirm protobuf
+
+# Mac Os
+brew install protobuf
+```
+
+- ### Install the `wasm` target for your rust toolchain
+
+```sh
+rustup target add wasm32-unknown-unknown
 ```
