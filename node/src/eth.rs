@@ -7,7 +7,7 @@ use std::{
 
 use futures::{future, prelude::*};
 // Substrate
-use sc_client_api::{BlockchainEvents};
+use sc_client_api::BlockchainEvents;
 use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch};
 
 use sc_network_sync::SyncingService;
@@ -117,11 +117,10 @@ pub trait EthCompatRuntimeApiCollection:
 {
 }
 
-impl<Api> EthCompatRuntimeApiCollection for Api
-where
+impl<Api> EthCompatRuntimeApiCollection for Api where
 	Api: sp_api::ApiExt<Block>
 		+ fp_rpc::EthereumRuntimeRPCApi<Block>
-		+ fp_rpc::ConvertTransactionRuntimeApi<Block>,
+		+ fp_rpc::ConvertTransactionRuntimeApi<Block>
 {
 }
 
@@ -146,8 +145,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 		TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
 	>,
 	RuntimeApi: Send + Sync + 'static,
-	RuntimeApi::RuntimeApi:
-		EthCompatRuntimeApiCollection,
+	RuntimeApi::RuntimeApi: EthCompatRuntimeApiCollection,
 	Executor: NativeExecutionDispatch + 'static,
 {
 	// Spawn main mapping sync worker background task.
