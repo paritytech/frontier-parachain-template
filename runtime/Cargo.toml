@@ -210,6 +210,7 @@ runtime-benchmarks = [
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
+	"fp-self-contained/try-runtime",
 ]
 
 try-runtime = [
