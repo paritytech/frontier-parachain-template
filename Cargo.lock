@@ -2270,19 +2270,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cumulus-primitives-timestamp"
-version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
-dependencies = [
- "cumulus-primitives-core",
- "futures",
- "parity-scale-codec",
- "sp-inherents",
- "sp-std",
- "sp-timestamp",
-]
-
-[[package]]
 name = "cumulus-primitives-utility"
 version = "0.1.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
@@ -4202,7 +4189,6 @@ dependencies = [
  "cumulus-pallet-xcm",
  "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
- "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
  "fp-evm",
  "fp-rpc",
