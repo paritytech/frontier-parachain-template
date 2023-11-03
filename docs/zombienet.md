@@ -45,7 +45,7 @@ Commands:
 
 You may use the provided reference implementation from the repository or make your own. We provide a simple configuration for you [zombienet-config.toml](../zombienet-config.toml) which spins up two validators for the relay chain, and one collator for your parachain to get you quickly upto speed.
 
-⚠️ Note: The path of the polkadot executable used there is `./bin/polkadot` which means you need to have a folder called `bin` inside the repository directory which contains your compiled polkadot binary named as `polkadot`. In addition to that since version 1.1.0, you will also need to place the `polkadot-execute-worker` and the `polkadot-prepare-worker` binaries to be inside `bin`. As a user you don't need to interact with these but these are required to start up the main relay chain `polkadot` software. You can find all three [here](https://github.com/paritytech/polkadot-sdk/releases/tag/polkadot-v1.1.0)
+⚠️ Note: The path of the polkadot executable used there is `./bin/polkadot` which means you need to have a folder called `bin` inside the repository directory which contains your compiled polkadot binary named as `polkadot`. In addition to that since version 1.1.0, you will also need to place the `polkadot-execute-worker` and the `polkadot-prepare-worker` binaries to be inside `bin`. As a user you don't need to interact with these but these are required to start up the main relay chain `polkadot` software. You can find all three [here](https://github.com/paritytech/polkadot-sdk/releases)
 
 
 
