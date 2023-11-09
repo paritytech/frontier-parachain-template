@@ -1,6 +1,7 @@
 //! Benchmarking setup for pallet-template
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
+use scale_info::prelude::vec;
 
 #[allow(unused)]
 use crate::Pallet as Template;
@@ -19,6 +20,6 @@ mod benchmarks {
 
 		assert_eq!(Something::<T>::get(), Some(s));
 	}
-}
 
-impl_benchmark_test_suite!(Template, crate::mock::new_test_ext(), crate::mock::Test,);
+	impl_benchmark_test_suite!(Template, crate::mock::new_test_ext(), crate::mock::Test,);
+}
