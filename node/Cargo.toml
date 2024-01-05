@@ -80,17 +80,17 @@ cumulus-primitives-parachain-inherent = {git = "https://github.com/paritytech/po
 cumulus-relay-chain-interface = {git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"}
 
 # Frontier
-fc-api = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0"}
-fc-cli = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0"}
-fc-consensus = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0"}
-fc-db = {git = "https://github.com/paritytech/frontier", features = ["default", "sql"], branch = "polkadot-v1.1.0"}
-fc-mapping-sync = {git = "https://github.com/paritytech/frontier", features = ["sql"], branch = "polkadot-v1.1.0"}
-fc-rpc = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0", features = ["rpc-binary-search-estimate", "txpool"]}
-fc-rpc-core = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0"}
-fc-storage = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0"}
-fp-dynamic-fee = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0"}
-fp-evm = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0"}
-fp-rpc = {git = "https://github.com/paritytech/frontier", branch = "polkadot-v1.1.0"}
+fc-api = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0"}
+fc-cli = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0"}
+fc-consensus = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0"}
+fc-db = {git = "https://github.com/polkadot-evm/frontier", features = ["default", "sql"], branch = "polkadot-v1.1.0"}
+fc-mapping-sync = {git = "https://github.com/polkadot-evm/frontier", features = ["sql"], branch = "polkadot-v1.1.0"}
+fc-rpc = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0", features = ["rpc-binary-search-estimate", "txpool"]}
+fc-rpc-core = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0"}
+fc-storage = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0"}
+fp-dynamic-fee = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0"}
+fp-evm = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0"}
+fp-rpc = {git = "https://github.com/polkadot-evm/frontier", branch = "polkadot-v1.1.0"}
 
 [build-dependencies]
 substrate-build-script-utils = {git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"}
