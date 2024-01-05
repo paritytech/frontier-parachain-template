@@ -1,6 +1,6 @@
 # Frontier Parachain Template 
 
-The **Frontier Parachain Template** is a ready-to-use EVM-based parachain (based on the [Frontier project](https://github.com/paritytech/frontier)), pre-configured with the [Assets](https://paritytech.github.io/substrate/master/pallet_assets/index.html) pallet, a simple Governance system ([Collective](https://paritytech.github.io/substrate/master/pallet_collective/index.html) & [Motion](https://github.com/paritytech/extended-parachain-template/tree/main/pallets/motion) pallets), and EVM precompiles.
+The **Frontier Parachain Template** is a ready-to-use EVM-based parachain (based on the [Frontier project](https://github.com/polkadot-evm/frontier)), pre-configured with the [Assets](https://paritytech.github.io/substrate/master/pallet_assets/index.html) pallet, a simple Governance system ([Collective](https://paritytech.github.io/substrate/master/pallet_collective/index.html) & [Motion](https://github.com/paritytech/extended-parachain-template/tree/main/pallets/motion) pallets), and EVM precompiles.
 
 This is an ideal starting point for any Parachain project that needs to support legacy Solidity smart contracts, but that wants at the same time to benefit from the flexibility provided by Substrate, and the shared security of the Polkadot relay chain.
 

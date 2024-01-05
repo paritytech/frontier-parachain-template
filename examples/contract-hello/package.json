@@ -5,7 +5,7 @@
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/paritytech/frontier.git"
+    "url": "git+https://github.com/polkadot-evm/frontier.git"
   },
   "keywords": [
     "ethereum",
@@ -14,9 +14,9 @@
   "author": "Parity Technologies <admin@parity.io>",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/paritytech/frontier/issues"
+    "url": "https://github.com/polkadot-evm/frontier/issues"
   },
-  "homepage": "https://github.com/paritytech/frontier",
+  "homepage": "https://github.com/polkadot-evm/frontier",
   "dependencies": {
     "web3": "^1.8.0"
   }
