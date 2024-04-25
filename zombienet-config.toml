@@ -8,13 +8,14 @@ default_command = "./bin/polkadot"
   [[relaychain.nodes]]
   name = "alice"
   validator = true
-  ws_port = 9900
-  extra_args = [ "-lparachain=debug" ]
+  # ws_port was deprecated 
+  rpc_port = 9900
+  args = [ "-lparachain=debug" ]
 
   [[relaychain.nodes]]
   name = "bob"
   validator = true
-  extra_args = [ "-lparachain=debug" ]
+  args = [ "-lparachain=debug" ]
 
 [[parachains]]
 id = 1000
@@ -25,10 +26,5 @@ chain = "local"
   [[parachains.collators]]
   name = "frontier-parachain-collator01"
   command = "./target/release/frontier-parachain-node"
-  ws_port = 9910
-  args = [""]
-
-[types.Header]
-number = "u64"
-parent_hash = "Hash"
-post_state = "Hash"
+  # ws_port was deprecated 
+  rpc_port = 9910
